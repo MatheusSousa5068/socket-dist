@@ -1,5 +1,4 @@
 package com.gugawag.so.ipc;
-
 /**
  * Time-of-day server listening to port 6013.
  *
@@ -9,38 +8,52 @@ package com.gugawag.so.ipc;
  * Operating System Concepts  - Ninth Edition
  * Copyright John Wiley & Sons - 2013.
  */
+
 import java.net.*;
 import java.io.*;
 import java.util.Date;
 
-public class DateServer{
-	public static void main(String[] args)  {
+public class DateServer {
+	public static void main(String[] args) {
 		try {
-			ServerSocket sock = new ServerSocket(6013);
-
+			ServerSocket serverSocket = new ServerSocket(6013);
 			System.out.println("=== Servidor iniciado ===\n");
-			// escutando por conexões
+
 			while (true) {
-				Socket client = sock.accept();
-				// Se chegou aqui, foi porque algum cliente se comunicou
-				System.out.println("Servidor recebeu comunicação do ip: " + client.getInetAddress() + "-" + client.getPort());
-				PrintWriter pout = new PrintWriter(client.getOutputStream(), true);
-
-				// Escreve a data atual no socket
-				pout.println(new Date().toString() + "-Boa noite alunos, sou Matheus Pereira de Sousa e fiz com minha dupla, Pablo Estrela!");
-
-				InputStream in = client.getInputStream();
-				BufferedReader bin = new BufferedReader(new InputStreamReader(in));
-
-				String line = bin.readLine();
-				System.out.println("O cliente me disse:" + line);
-
-				// fechar o socket e volta no loop para escutar novas conexões
-				client.close();
+				Socket clientSocket = serverSocket.accept();
+				new ClientHandler(clientSocket).start();
 			}
+		} catch (IOException ioe) {
+			System.err.println(ioe);
 		}
-		catch (IOException ioe) {
-				System.err.println(ioe);
+	}
+}
+
+class ClientHandler extends Thread {
+	private Socket clientSocket;
+
+	public ClientHandler(Socket socket) {
+		this.clientSocket = socket;
+	}
+
+	@Override
+	public void run() {
+		try {
+			PrintWriter pout = new PrintWriter(clientSocket.getOutputStream(), true);
+			BufferedReader bin = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+
+			pout.println(new Date().toString() + "-Boa noite alunos, sou Matheus Pereira de Sousa e fiz com minha dupla, Pablo Estrela!");
+
+			String line = bin.readLine();
+			System.out.println("O cliente me disse: " + line);
+
+
+			Thread.sleep(30000);
+			clientSocket.close();
+		} catch (IOException e) {
+			System.err.println("Erro ao comunicar com o cliente: " + e);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
 		}
 	}
 }
