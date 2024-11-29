@@ -1,140 +1,59 @@
-package br.edu.ifpb.gugawag.so.sockets;
+package com.gugawag.so.ipc;
+/**
+ * Time-of-day server listening to port 6013.
+ *
+ * Figure 3.21
+ *
+ * @author Silberschatz, Gagne, and Galvin. Pequenas alterações feitas por Gustavo Wagner (gugawag@gmail.com)
+ * Operating System Concepts  - Ninth Edition
+ * Copyright John Wiley & Sons - 2013.
+ */
 
+import java.net.*;
 import java.io.*;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.util.Date;
 
-public class Servidor2 {
+public class DateServer {
+	public static void main(String[] args) {
+		try {
+			ServerSocket serverSocket = new ServerSocket(6013);
+			System.out.println("=== Servidor iniciado ===\n");
 
-    public static void main(String[] args) throws IOException {
-        System.out.println("== Servidor ==");
-
-        ServerSocket serverSocket = new ServerSocket(7001);
-
-
-        while (true) {
-            Socket clientSocket = serverSocket.accept();
-            new ClientHandler(clientSocket).start();
-        }
-    }
+			while (true) {
+				Socket clientSocket = serverSocket.accept();
+				new ClientHandler(clientSocket).start();
+			}
+		} catch (IOException ioe) {
+			System.err.println(ioe);
+		}
+	}
 }
 
 class ClientHandler extends Thread {
-    private Socket socket;
+	private Socket clientSocket;
 
-    public ClientHandler(Socket socket) {
-        this.socket = socket;
-    }
+	public ClientHandler(Socket socket) {
+		this.clientSocket = socket;
+	}
 
-    @Override
-    public void run() {
-        try {
+	@Override
+	public void run() {
+		try {
+			PrintWriter pout = new PrintWriter(clientSocket.getOutputStream(), true);
+			BufferedReader bin = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
-            DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
-            DataInputStream dis = new DataInputStream(socket.getInputStream());
+			pout.println(new Date().toString() + "-Boa noite alunos, sou Matheus Pereira de Sousa e fiz com minha dupla, Pablo Estrela!");
 
-            System.out.println("Cliente: " + socket.getInetAddress());
-
-            String mensagem = dis.readUTF();
-            System.out.println("Mensagem recebida: " + mensagem);
-            String[] partes = mensagem.split(" ", 3);
-            String comando = partes[0].toLowerCase();
-
-            switch (comando) {
-                case "readdir":
-                    listarArquivos(dos);
-                    break;
-                case "rename":
-                    if (partes.length == 3) {
-                        renomearArquivo(dos, partes[1], partes[2]);
-                    } else {
-                        dos.writeUTF("Comando inválido. Use: rename <arquivo_antigo> <novo_nome>");
-                    }
-                    break;
-                case "create":
-                    if (partes.length == 2) {
-                        criarArquivo(dos, partes[1]);
-                    } else {
-                        dos.writeUTF("Comando inválido. Use: create <nome_arquivo>");
-                    }
-                    break;
-                case "remove":
-                    if (partes.length == 2) {
-                        removerArquivo(dos, partes[1]);
-                    } else {
-                        dos.writeUTF("Comando inválido. Use: remove <nome_arquivo>");
-                    }
-                    break;
-                default:
-                    dos.writeUTF("Comando desconhecido: " + comando);
-                    break;
-            }
-        } catch (IOException e) {
-            System.err.println("Erro ao comunicar com o cliente: " + e);
-        }
-    }
-
-    private static void listarArquivos(DataOutputStream dos) throws IOException {
-        File dir = new File("/home/ifpb/Documentos");
-        if (dir.exists() && dir.isDirectory()) {
-            String[] arquivos = dir.list();
-            if (arquivos != null && arquivos.length > 0) {
-                StringBuilder listaArquivos = new StringBuilder("Arquivos no diretório Documents:\n");
-                for (String arquivo : arquivos) {
-                    listaArquivos.append(arquivo).append("\n");
-                }
-                dos.writeUTF(listaArquivos.toString());
-            } else {
-                dos.writeUTF("Não há arquivos no diretório.");
-            }
-        } else {
-            dos.writeUTF("O diretório 'Documents' não existe ou não é um diretório válido.");
-        }
-    }
-
-    private static void renomearArquivo(DataOutputStream dos, String arquivoAntigo, String novoNome) throws IOException {
-        File arquivo = new File("/home/ifpb/Documentos/" + arquivoAntigo);
-        File novoArquivo = new File("/home/ifpb/Documentos/" + novoNome);
-
-        if (arquivo.exists()) {
-            if (arquivo.renameTo(novoArquivo)) {
-                dos.writeUTF("Arquivo renomeado com sucesso de " + arquivoAntigo + " para " + novoNome);
-            } else {
-                dos.writeUTF("Erro ao renomear o arquivo.");
-            }
-        } else {
-            dos.writeUTF("Arquivo não encontrado: " + arquivoAntigo);
-        }
-    }
-
-    private static void criarArquivo(DataOutputStream dos, String nomeArquivo) throws IOException {
-        File arquivo = new File("/home/ifpb/Documentos/" + nomeArquivo);
-
-        if (arquivo.exists()) {
-            dos.writeUTF("Arquivo já existe: " + nomeArquivo);
-        } else {
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter(arquivo))) {
-                writer.write("");
-                dos.writeUTF("Arquivo criado com sucesso: " + nomeArquivo);
-            } catch (IOException e) {
-                dos.writeUTF("Erro ao criar o arquivo: " + nomeArquivo);
-            }
-        }
-    }
+			String line = bin.readLine();
+			System.out.println("O cliente me disse: " + line);
 
 
-    private static void removerArquivo(DataOutputStream dos, String nomeArquivo) throws IOException {
-        File arquivo = new File("/home/ifpb/Documentos/" + nomeArquivo);
-
-        if (arquivo.exists()) {
-            if (arquivo.delete()) {
-                dos.writeUTF("Arquivo removido com sucesso: " + nomeArquivo);
-            } else {
-                dos.writeUTF("Erro ao remover o arquivo.");
-            }
-        } else {
-            dos.writeUTF("Arquivo não encontrado: " + nomeArquivo);
-        }
-    }
+			Thread.sleep(30000);
+			clientSocket.close();
+		} catch (IOException e) {
+			System.err.println("Erro ao comunicar com o cliente: " + e);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
+	}
 }
